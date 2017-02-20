@@ -10,8 +10,9 @@ Mat raw2Mat(int);
 Mat cannyDector(Mat);
 int getChoice();
 void createGaussianKernel();
+Mat useGaussianBlur(Mat);
 
-int *maskGlobal, maskWidth = 0, maskSum = 0;
+int *maskGlobal, maskRad, maskWidth = 0, maskSum = 0;
 
 int main(int argc, char** argv)
 {
@@ -34,8 +35,34 @@ int main(int argc, char** argv)
     return 0;
 }
 
+Mat useGaussianBlur(Mat inImg)
+{
+    //haven't handle border
+    Mat filteredImg = Mat(inImg.rows - 2*maskRad, inImg.cols - 2*maskRad, CV_8UC1);
+    //Convolutuion process, image*mask
+    for (int i = maskRad; i < inImg.rows - maskRad; i++)
+    {
+        for (int j = maskRad; j < inImg.cols - maskRad; j++)
+        {
+            double sum = 0;
+            
+            for (int x = 0; x < maskWidth; x++)
+                for (int y = 0; y < maskWidth; y++)
+                {
+                    sum += *(maskGlobal + x*maskWidth + y) * (double)(inImg.at<uchar>(i + x - maskRad, j + y - maskRad));
+                }
+            filteredImg.at<uchar>(i-maskRad, j-maskRad) = sum/maskSum;
+        }
+        
+    }
+    printf("ROW %d COL %d\n",filteredImg.rows, filteredImg.cols);
+    return filteredImg;
+}
+
 Mat cannyDector(Mat tmpImg)
 {
+    tmpImg = useGaussianBlur(tmpImg);
+    
     int i ,j;
     //access the gaussian mask using pointer
     for(i = 0; i <  maskWidth; i++)
@@ -58,7 +85,7 @@ Mat cannyDector(Mat tmpImg)
     }
     printf("Total Pixel is %d\n", counter);
     
-    Canny(tmpImg, tmpImg, 40, 80);
+    //Canny(tmpImg, tmpImg, 40, 80);
     return tmpImg;
 }
 
@@ -79,7 +106,7 @@ void createGaussianKernel()
     double gaussianMaskDou[maskWidth][maskWidth], maskMin = 0.0;
     int gaussianMaskInt[maskWidth][maskWidth];
     
-    int maskRad = maskWidth / 2;
+    maskRad = maskWidth / 2;
     int i, j;
     //construct the gaussian mask
     for(int x = - maskRad; x <= maskRad; x++)
