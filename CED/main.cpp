@@ -20,7 +20,7 @@ int *gaussianMask, maskRad, maskWidth = 0, maskSum = 0;
 int main(int argc, char** argv)
 {
     int imgChoice;
-    char oriwndName[] = "Original Image", bluwndName[] = "Blured Image", magwndName[] = "Edge Mag Image", angwndName[] = "Edge Angle Image";
+    char oriwndName[] = "Original Image", bluwndName[] = "Blured Image", magwndName[] = "Edge Mag Image", edgewndName[] = "Non-Max Suppress";
     
     imgChoice = getChoice();
     oriImage = raw2Mat(imgChoice);
@@ -31,7 +31,7 @@ int main(int argc, char** argv)
     imshow(oriwndName, oriImage);
     imshow(bluwndName, bluredImage);
     imshow(magwndName, edgeMagImage);
-    imshow(angwndName, edgeAngImage);
+    imshow(edgewndName, thinEdgeImage);
     
     waitKey();
     
@@ -162,6 +162,7 @@ void cannyDector()
 {
     useGaussianBlur();
     useSobelDerivat();
+    nonMaxSuppress();
     
     //access the gaussian mask using pointer
     for(int i = 0; i <  maskWidth; i++)
@@ -229,7 +230,7 @@ void useSobelDerivat()
     {
         for (int j = 0; j < bluredImage.cols; j++)
         {
-            if ( i == sobelRad || i == bluredImage.rows-sobelRad || j == sobelRad || j ==bluredImage.cols-sobelRad)
+            if ( i == sobelRad-1 || i == bluredImage.rows-sobelRad || j == sobelRad-1 || j ==bluredImage.cols-sobelRad)
             {
                 edgeMagImage.at<uchar>(i, j) = 0;
                 edgeAngImage.at<uchar>(i, j) = 255;
@@ -261,6 +262,44 @@ void useSobelDerivat()
                 if ( ( (ang >= 112.5) && (ang < 157.5) ) || ( (ang < -22.5) && (ang >= -67.5) ) )
                     ang = 135;
                 edgeAngImage.at<uchar>(i, j) = ang;
+            }
+        }
+    }
+}
+
+void nonMaxSuppress()
+{
+    thinEdgeImage = edgeMagImage.clone();
+    
+    for (int i = 0; i < thinEdgeImage.rows; i++)
+    {
+        for (int j = 0; j < thinEdgeImage.cols; j++)
+        {
+            if ( i == 0 || i == thinEdgeImage.rows-1 || j == 0 || j == thinEdgeImage.cols-1){
+                thinEdgeImage.at<uchar>(i, j) = 0;
+            }
+            else
+            {
+                //0 degree direction, left and right
+                if (edgeAngImage.at<uchar>(i, j) == 0) {
+                    if ( edgeMagImage.at<uchar>(i, j) < edgeMagImage.at<uchar>(i, j+1) || edgeMagImage.at<uchar>(i, j) < edgeMagImage.at<uchar>(i, j-1) )
+                        thinEdgeImage.at<uchar>(i, j) = 0;
+                }
+                //45 degree direction,up right and down left
+                if (edgeAngImage.at<uchar>(i, j) == 45) {
+                    if ( edgeMagImage.at<uchar>(i, j) < edgeMagImage.at<uchar>(i+1, j-1) || edgeMagImage.at<uchar>(i, j) < edgeMagImage.at<uchar>(i-1, j+1) )
+                        thinEdgeImage.at<uchar>(i, j) = 0;
+                }
+                //90 degree direction, up and down
+                if (edgeAngImage.at<uchar>(i, j) == 90) {
+                    if ( edgeMagImage.at<uchar>(i, j) < edgeMagImage.at<uchar>(i+1, j) || edgeMagImage.at<uchar>(i, j) < edgeMagImage.at<uchar>(i-1, j) )
+                        thinEdgeImage.at<uchar>(i, j) = 0;
+                }
+                //135 degree direction, up left and down right
+                if (edgeAngImage.at<uchar>(i, j) == 135) {
+                    if ( edgeMagImage.at<uchar>(i, j) < edgeMagImage.at<uchar>(i-1, j-1) || edgeMagImage.at<uchar>(i, j) < edgeMagImage.at<uchar>(i+1, j+1) )
+                        thinEdgeImage.at<uchar>(i, j) = 0;
+                }
             }
         }
     }
