@@ -13,14 +13,18 @@ void cannyDector();
 void useGaussianBlur();
 void useSobelDerivat();
 void nonMaxSuppress();
+void hysteresisThreshold(int, int);
+Mat combineImage();
 
-Mat oriImage, bluredImage, edgeMagImage, edgeAngImage, thinEdgeImage;
+Mat oriImage, bluredImage, edgeMagImage, edgeAngImage, thinEdgeImage, thresholdImage;
 int *gaussianMask, maskRad, maskWidth = 0, maskSum = 0;
+float sigma = 0.0;
 
 int main(int argc, char** argv)
 {
     int imgChoice;
-    char oriwndName[] = "Original Image", bluwndName[] = "Blured Image", magwndName[] = "Edge Mag Image", edgewndName[] = "Non-Max Suppress";
+    char wndName[] = "Canny Process";
+    Mat combinedImage;
     
     imgChoice = getChoice();
     oriImage = raw2Mat(imgChoice);
@@ -28,10 +32,9 @@ int main(int argc, char** argv)
     createGaussianKernel();
     cannyDector();
     
-    imshow(oriwndName, oriImage);
-    imshow(bluwndName, bluredImage);
-    imshow(magwndName, edgeMagImage);
-    imshow(edgewndName, thinEdgeImage);
+    combinedImage = combineImage();
+
+    imshow(wndName, combinedImage);
     
     waitKey();
     
@@ -42,6 +45,7 @@ int main(int argc, char** argv)
 int getChoice()
 {
     int inputNumber;
+    printf(">>>>         Canny Edge Detector           <<<<\n");
     printf(">>>> 1.Cana 2.Fruit 3.Img335 4.Leap 5.Leaf <<<<\n");
     printf("Please input your choice number and press Enter: ");
     scanf("%d", &inputNumber);
@@ -117,8 +121,6 @@ Mat raw2Mat(int choice)
 
 void createGaussianKernel()
 {
-    float sigma;
-    
     printf("Please input standard deviation(>0) and press Enter: ");
     scanf("%f", &sigma);
     if(sigma < 0.01) sigma = 0.01;
@@ -163,6 +165,7 @@ void cannyDector()
     useGaussianBlur();
     useSobelDerivat();
     nonMaxSuppress();
+    hysteresisThreshold(20, 50);
     
     //access the gaussian mask using pointer
     for(int i = 0; i <  maskWidth; i++)
@@ -184,7 +187,7 @@ void cannyDector()
             //printf("test: %d", tmpImg.at<uchar>(i,j));
         }
     }
-    printf("Total Pixel is %d\n", counter);
+    //printf("Total Pixel is %d\n", counter);
 }
 
 void useGaussianBlur()
@@ -303,4 +306,81 @@ void nonMaxSuppress()
             }
         }
     }
+}
+
+void hysteresisThreshold(int lowTh, int highTh)
+{
+    thresholdImage = thinEdgeImage.clone();
+    
+    for (int i=0; i<thresholdImage.rows; i++)
+    {
+        for (int j = 0; j<thresholdImage.cols; j++)
+        {
+            if(thinEdgeImage.at<uchar>(i,j) > highTh)
+                thresholdImage.at<uchar>(i,j) = 255;
+            else if(thinEdgeImage.at<uchar>(i,j) < lowTh)
+                thresholdImage.at<uchar>(i,j) = 0;
+            else
+            {
+                bool isHigher = false;
+                bool doConnect = false;
+                for (int x=i-1; x < i+2; x++)
+                {
+                    for (int y = j-1; y<j+2; y++)
+                    {
+                        if (x <= 0 || y <= 0 || x > thresholdImage.rows || y > thresholdImage.cols)
+                            continue;
+                        else
+                        {
+                            if (thinEdgeImage.at<uchar>(x,y) > highTh)
+                            {
+                                thresholdImage.at<uchar>(i,j) = 255;
+                                isHigher = true;
+                                break;
+                            }
+                            else if (thinEdgeImage.at<uchar>(x,y) <= highTh && thinEdgeImage.at<uchar>(x,y) >= lowTh)
+                                doConnect = true;
+                        }
+                    }
+                    if (isHigher)    break;
+                }
+                if (!isHigher && doConnect)
+                    for (int x = i-2; x < i+3; x++)
+                    {
+                        for (int y = j-2; y < j+3; y++)
+                        {
+                            if (x < 0 || y < 0 || x > thresholdImage.rows || y > thresholdImage.cols)
+                                continue;
+                            else
+                            {
+                                if (thinEdgeImage.at<uchar>(x,y) > highTh)
+                                {
+                                    thresholdImage.at<uchar>(i,j) = 255;
+                                    isHigher = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (isHigher)    break;
+                    }
+                if (!isHigher)   thresholdImage.at<uchar>(i,j) = 0;
+            }
+        }
+    }
+}
+
+Mat combineImage()
+{
+    Mat h1CombineImage, h2CombineImage, allImage;
+    Mat extraImage = Mat(oriImage.rows, oriImage.cols, CV_8UC1, Scalar(255));
+    putText(extraImage, "Ori, Gaus, Sobel", Point(10,20), FONT_HERSHEY_PLAIN, 1, Scalar(0));
+    putText(extraImage, "NMS, Threshold", Point(10,38), FONT_HERSHEY_PLAIN, 1, Scalar(0));
+    
+    hconcat(oriImage, bluredImage, h1CombineImage);
+    hconcat(h1CombineImage, edgeMagImage, h1CombineImage);
+    hconcat(thinEdgeImage, thresholdImage, h2CombineImage);
+    hconcat(h2CombineImage, extraImage, h2CombineImage);
+    vconcat(h1CombineImage, h2CombineImage, allImage);
+    
+    return allImage;
 }
