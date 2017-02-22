@@ -11,14 +11,16 @@ Mat raw2Mat(int);
 void createGaussianKernel();
 void cannyDector();
 void useGaussianBlur();
+void useSobelDerivat();
+void nonMaxSuppress();
 
-Mat oriImage, bluredImage;
-int *maskGlobal, maskRad, maskWidth = 0, maskSum = 0;
+Mat oriImage, bluredImage, edgeMagImage, edgeAngImage, thinEdgeImage;
+int *gaussianMask, maskRad, maskWidth = 0, maskSum = 0;
 
 int main(int argc, char** argv)
 {
     int imgChoice;
-    char oriwndName[] = "Original Image", bluwndName[] = "Blured Image" ;
+    char oriwndName[] = "Original Image", bluwndName[] = "Blured Image", magwndName[] = "Edge Mag Image", angwndName[] = "Edge Angle Image";
     
     imgChoice = getChoice();
     oriImage = raw2Mat(imgChoice);
@@ -28,10 +30,12 @@ int main(int argc, char** argv)
     
     imshow(oriwndName, oriImage);
     imshow(bluwndName, bluredImage);
+    imshow(magwndName, edgeMagImage);
+    imshow(angwndName, edgeAngImage);
     
     waitKey();
     
-    free(maskGlobal);
+    free(gaussianMask);
     return 0;
 }
 
@@ -123,7 +127,7 @@ void createGaussianKernel()
     if(maskWidth < 1)   maskWidth = 1;
     printf("Sigma is %.2f, Mask Width is %d.\n", sigma, maskWidth);
     
-    maskGlobal = (int*)malloc(maskWidth * maskWidth * sizeof(int));
+    gaussianMask = (int*)malloc(maskWidth * maskWidth * sizeof(int));
     
     double gaussianMaskDou[maskWidth][maskWidth], maskMin = 0.0;
     int gaussianMaskInt[maskWidth][maskWidth];
@@ -151,19 +155,20 @@ void createGaussianKernel()
     //represent mask using global pointer
     for(i = 0; i <  maskWidth; i++)
         for (j = 0; j < maskWidth; j++)
-            *(maskGlobal + i*maskWidth + j) = gaussianMaskInt[i][j];
+            *(gaussianMask + i*maskWidth + j) = gaussianMaskInt[i][j];
 }
 
 void cannyDector()
 {
     useGaussianBlur();
+    useSobelDerivat();
     
     //access the gaussian mask using pointer
     for(int i = 0; i <  maskWidth; i++)
     {
         for (int j = 0; j < maskWidth; j++)
         {
-            printf("%-4d",*(maskGlobal + i*maskWidth + j));
+            printf("%-6d",*(gaussianMask + i*maskWidth + j));
         }
         printf("\n");
     }
@@ -197,11 +202,66 @@ void useGaussianBlur()
                 for (int x = 0; x < maskWidth; x++)
                     for (int y = 0; y < maskWidth; y++)
                     {
-                        sum += *(maskGlobal + x*maskWidth + y) * (double)(oriImage.at<uchar>(i + x - maskRad, j + y - maskRad));
+                        sum += *(gaussianMask + x*maskWidth + y) * (double)(oriImage.at<uchar>(i + x - maskRad, j + y - maskRad));
                     }
                 bluredImage.at<uchar>(i, j) = sum/maskSum;
             }
         }
         
+    }
+}
+
+void useSobelDerivat()
+{
+    edgeMagImage = Mat::zeros(bluredImage.rows, bluredImage.cols, CV_8UC1);
+    edgeAngImage = Mat::zeros(bluredImage.rows, bluredImage.cols, CV_8UC1);
+    
+    int xsobelMask[3][3] = { {-1, 0, 1},
+        {-2, 0, 2},
+        {-1, 0, 1} };
+    int ysobelMask[3][3] = { {1, 2, 1},
+        {0, 0 , 0},
+        {-1, -2, -1} };
+    int sobelRad = 1;//int(width/2)=3/2=1
+    int sobelWidth = 3;
+    
+    for (int i = 0; i < bluredImage.rows; i++)
+    {
+        for (int j = 0; j < bluredImage.cols; j++)
+        {
+            if ( i == sobelRad || i == bluredImage.rows-sobelRad || j == sobelRad || j ==bluredImage.cols-sobelRad)
+            {
+                edgeMagImage.at<uchar>(i, j) = 0;
+                edgeAngImage.at<uchar>(i, j) = 255;
+            }
+            else
+            {
+                int sumX = 0;
+                int sumY = 0;
+                
+                for (int x = 0; x < sobelWidth; x++)
+                    for (int y = 0; y < sobelWidth; y++)
+                    {
+                        sumX += xsobelMask[x][y] * bluredImage.at<uchar>(i+x-sobelRad, j+y-sobelRad);
+                        sumY += ysobelMask[x][y] * bluredImage.at<uchar>(i+x-sobelRad, j+y-sobelRad);
+                    }
+                
+                int mag = sqrt(sumX*sumX + sumY*sumY);
+                if (mag > 255)  mag = 255;
+                edgeMagImage.at<uchar>(i, j) = mag;
+                
+                int ang = (atan2(sumY, sumX)/M_PI) * 180;
+                
+                if ( ( (ang < 22.5) && (ang >= -22.5) ) || (ang >= 157.5) || (ang < -157.5) )
+                    ang = 0;
+                if ( ( (ang >= 22.5) && (ang < 67.5) ) || ( (ang < -112.5) && (ang >= -157.5) ) )
+                    ang = 45;
+                if ( ( (ang >= 67.5) && (ang < 112.5) ) || ( (ang < -67.5) && (ang >= -112.5) ) )
+                    ang = 90;
+                if ( ( (ang >= 112.5) && (ang < 157.5) ) || ( (ang < -22.5) && (ang >= -67.5) ) )
+                    ang = 135;
+                edgeAngImage.at<uchar>(i, j) = ang;
+            }
+        }
     }
 }
