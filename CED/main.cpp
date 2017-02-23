@@ -46,7 +46,9 @@ int main(int argc, char** argv)
             combinedImage = combineImage();
         
             imshow(wndName, combinedImage);
-            waitKey();
+            waitKey(10);
+            //if((waitKey(10) & 255) == 27)
+             //   printf("test/n");
         
             char tryNewSigma;
             printf("Do you want to try other sigma?(Y/N): ");
@@ -54,6 +56,8 @@ int main(int argc, char** argv)
             if (tryNewSigma == 'y' || tryNewSigma == 'Y') {
                 isNewSigma = true;
                 printf("\n-------------Please Try Another Sigma-------------\n");
+                destroyWindow(wndName);
+                combinedImage.release();
             }
         
             free(gaussianMask);
@@ -76,10 +80,7 @@ int main(int argc, char** argv)
         }
         oriImage.setTo(Scalar(0));
     }
-    
-    printf("Press Esc for quit the program.\n");
-    waitKey();
-    
+    printf("-------Program End-------\n");
     return 0;
 }
 
@@ -207,6 +208,7 @@ void cannyDector()
     nonMaxSuppress();
     hysteresisThreshold(20, 50);
     
+    //print the gaussian mask
     //access the gaussian mask using pointer
     for(int i = 0; i <  maskWidth; i++)
     {
@@ -216,18 +218,6 @@ void cannyDector()
         }
         printf("\n");
     }
-    
-    //acceess the pixel value using .at<uchar>(i,j)
-    int counter = 0;
-    for(int i = 0; i < oriImage.rows; i++)
-    {
-        for(int j = 0; j < oriImage.cols; j++)
-        {
-            counter++;
-            //printf("test: %d", tmpImg.at<uchar>(i,j));
-        }
-    }
-    //printf("Total Pixel is %d\n", counter);
 }
 
 void useGaussianBlur()
