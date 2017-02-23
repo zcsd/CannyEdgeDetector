@@ -26,26 +26,66 @@ int main(int argc, char** argv)
     char wndName[] = "Canny Process";
     Mat combinedImage;
     
-    imgChoice = getChoice();
-    oriImage = raw2Mat(imgChoice);
+    printf(">>>>         Canny Edge Detector           <<<<\n");
 
-    createGaussianKernel();
-    cannyDector();
+    bool isNewImage = true;
+    while (isNewImage)
+    {
+        isNewImage = false;
+        
+        imgChoice = getChoice();
+        oriImage = raw2Mat(imgChoice);
     
-    combinedImage = combineImage();
-
-    imshow(wndName, combinedImage);
+        bool isNewSigma = true;
+        while (isNewSigma)
+        {
+            isNewSigma = false;
+            createGaussianKernel();
+            cannyDector();
+        
+            combinedImage = combineImage();
+        
+            imshow(wndName, combinedImage);
+            waitKey();
+        
+            char tryNewSigma;
+            printf("Do you want to try other sigma?(Y/N): ");
+            scanf("%s", &tryNewSigma);
+            if (tryNewSigma == 'y' || tryNewSigma == 'Y') {
+                isNewSigma = true;
+                printf("\n-------------Please Try Another Sigma-------------\n");
+            }
+        
+            free(gaussianMask);
+            bluredImage.setTo(Scalar(0));
+            edgeMagImage.setTo(Scalar(0));
+            edgeAngImage.setTo(Scalar(0));
+            thinEdgeImage.setTo(Scalar(0));
+            thresholdImage.setTo(Scalar(0));
+            sigma = 0.0;
+            maskRad = 0;
+            maskWidth = 0;
+            maskSum = 0;
+        }
+        char tryNewImage;
+        printf("Do you want to try another image?(Y/N): ");
+        scanf("%s", &tryNewImage);
+        if (tryNewImage == 'y' || tryNewImage == 'Y') {
+            isNewImage = true;
+            printf("\n>>>>>>>>>---------Please Try Another Image--------<<<<<<<<<<\n");
+        }
+        oriImage.setTo(Scalar(0));
+    }
     
+    printf("Press Esc for quit the program.\n");
     waitKey();
     
-    free(gaussianMask);
     return 0;
 }
 
 int getChoice()
 {
     int inputNumber;
-    printf(">>>>         Canny Edge Detector           <<<<\n");
     printf(">>>> 1.Cana 2.Fruit 3.Img335 4.Leap 5.Leaf <<<<\n");
     printf("Please input your choice number and press Enter: ");
     scanf("%d", &inputNumber);
