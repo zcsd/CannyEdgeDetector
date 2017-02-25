@@ -15,6 +15,7 @@ void useSobelDerivat();
 void nonMaxSuppress();
 void hysteresisThreshold(int, int);
 Mat combineImage();
+void createLapGaussianKernel();
 
 Mat oriImage, bluredImage, edgeMagImage, edgeAngImage, thinEdgeImage, thresholdImage;
 int *gaussianMask, maskRad, maskWidth = 0, maskSum = 0;
@@ -47,8 +48,6 @@ int main(int argc, char** argv)
         
             imshow(wndName, combinedImage);
             waitKey(10);
-            //if((waitKey(10) & 255) == 27)
-             //   printf("test/n");
         
             char tryNewSigma;
             printf("Do you want to try other sigma?(Y/N): ");
@@ -403,8 +402,13 @@ Mat combineImage()
 {
     Mat h1CombineImage, h2CombineImage, allImage;
     Mat extraImage = Mat(oriImage.rows, oriImage.cols, CV_8UC1, Scalar(255));
+    char sigmaChar[10];
+    sprintf(sigmaChar, "%.2f", sigma);
+    
     putText(extraImage, "Ori, Gaus, Sobel", Point(10,20), FONT_HERSHEY_PLAIN, 1, Scalar(0));
     putText(extraImage, "NMS, Threshold", Point(10,38), FONT_HERSHEY_PLAIN, 1, Scalar(0));
+    putText(extraImage, "Sigma: ", Point(10,56), FONT_HERSHEY_PLAIN, 1, Scalar(0));
+    putText(extraImage, sigmaChar, Point(65,56), FONT_HERSHEY_PLAIN, 1, Scalar(0));
     
     hconcat(oriImage, bluredImage, h1CombineImage);
     hconcat(h1CombineImage, edgeMagImage, h1CombineImage);
