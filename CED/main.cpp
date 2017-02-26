@@ -19,7 +19,49 @@ void createLapGaussianKernel();
 
 Mat oriImage, bluredImage, edgeMagImage, edgeAngImage, thinEdgeImage, thresholdImage;
 int *gaussianMask, maskRad, maskWidth = 0, maskSum = 0;
+int *logMask, logmaskRad, logmaskWidth = 0, logmaskSum = 0;
 float sigma = 0.0;
+
+void createLapGaussianKernel()
+{
+    //printf("(LoG)Please input standard deviation(>0) and press Enter: ");
+    //scanf("%f", &sigma);
+    //if(sigma < 0.01) sigma = 0.01;
+    //computer mask width according to sigma value
+    //maskWidth = int((sigma - 0.01) * 3) * 2 + 1;
+    //if(maskWidth < 1)   maskWidth = 1;
+    //printf("Sigma is %.2f, Mask Width is %d.\n", sigma, maskWidth);
+    
+    logMask = (int*)malloc(maskWidth * maskWidth * sizeof(int));
+    
+    double gaussianMaskDou[maskWidth][maskWidth], maskMin = 0.0;
+    int gaussianMaskInt[maskWidth][maskWidth];
+    
+    //maskRad = maskWidth / 2;
+    int i, j;
+    //construct the gaussian mask
+    for(int x = - maskRad; x <= maskRad; x++)
+    {
+        for (int y = -maskRad; y <= maskRad; y++)
+        {
+            i = x + maskRad;
+            j = y + maskRad;
+            //Laplacian of Gaussian
+            gaussianMaskDou[i][j] = (1 - (x*x + y*y)/(2*sigma*sigma) ) * exp( (x*x + y*y) / (-2*sigma*sigma) );
+            //min value of mask is the first one
+            if(i == 0 && j == 0)  maskMin = gaussianMaskDou[0][0];
+            //convert mask value double to integer
+            gaussianMaskInt[i][j] = cvRound(gaussianMaskDou[i][j] / maskMin);
+            maskSum += gaussianMaskInt[i][j];
+        }
+    }
+    
+    printf("LoG Mask Sum is %d, rad is %d.\n", maskSum, maskRad);
+    //represent mask using global pointer
+    for(i = 0; i <  maskWidth; i++)
+        for (j = 0; j < maskWidth; j++)
+            *(logMask + i*maskWidth + j) = gaussianMaskInt[i][j];
+}
 
 int main(int argc, char** argv)
 {
@@ -42,6 +84,7 @@ int main(int argc, char** argv)
         {
             isNewSigma = false;
             createGaussianKernel();
+            createLapGaussianKernel();
             cannyDector();
         
             combinedImage = combineImage();
@@ -60,6 +103,7 @@ int main(int argc, char** argv)
             }
         
             free(gaussianMask);
+            free(logMask);
             bluredImage.setTo(Scalar(0));
             edgeMagImage.setTo(Scalar(0));
             edgeAngImage.setTo(Scalar(0));
@@ -214,6 +258,16 @@ void cannyDector()
         for (int j = 0; j < maskWidth; j++)
         {
             printf("%-6d",*(gaussianMask + i*maskWidth + j));
+        }
+        printf("\n");
+    }
+    //print the LoG mask
+    printf("LoG Mask\n");
+    for(int i = 0; i <  maskWidth; i++)
+    {
+        for (int j = 0; j < maskWidth; j++)
+        {
+            printf("%-6d",*(logMask + i*maskWidth + j));
         }
         printf("\n");
     }
