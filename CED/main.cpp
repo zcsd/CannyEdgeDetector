@@ -4,10 +4,10 @@
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 
+#include "LoadImage.h"
+
 using namespace cv;
 
-int getChoice();
-Mat raw2Mat(int);
 void createGaussianKernel();
 void cannyDector();
 void useGaussianBlur();
@@ -15,62 +15,63 @@ void useSobelDerivat();
 void nonMaxSuppress();
 void hysteresisThreshold(int, int);
 Mat combineImage();
-void createLapGaussianKernel();
+void createLoGKernel();
 
 Mat oriImage, bluredImage, edgeMagImage, edgeAngImage, thinEdgeImage, thresholdImage;
 int *gaussianMask, maskRad, maskWidth = 0, maskSum = 0;
 int *logMask, logmaskRad, logmaskWidth = 0, logmaskSum = 0;
-float sigma = 0.0;
+float sigma = 0.0, sigmaLoG = 0.0;
 
-void createLapGaussianKernel()
+void createLoGKernel()
 {
-    //printf("(LoG)Please input standard deviation(>0) and press Enter: ");
-    //scanf("%f", &sigma);
-    //if(sigma < 0.01) sigma = 0.01;
-    //computer mask width according to sigma value
-    //maskWidth = int((sigma - 0.01) * 3) * 2 + 1;
-    //if(maskWidth < 1)   maskWidth = 1;
-    //printf("Sigma is %.2f, Mask Width is %d.\n", sigma, maskWidth);
+    printf("(LoG)Please input standard deviation(>0) and press Enter: ");
+    scanf("%f", &sigmaLoG);
+    if(sigmaLoG < 0.01) sigmaLoG = 0.01;
+    logmaskWidth = 5;
+    printf("Sigma is %.2f, Mask Width is %d.\n", sigmaLoG, logmaskWidth);
     
-    logMask = (int*)malloc(maskWidth * maskWidth * sizeof(int));
+    logMask = (int*)malloc(logmaskWidth * logmaskWidth * sizeof(int));
     
-    double gaussianMaskDou[maskWidth][maskWidth], maskMin = 0.0;
-    int gaussianMaskInt[maskWidth][maskWidth];
+    double logMaskDou[logmaskWidth][logmaskWidth], logmaskMin = 0.0;
+    int logMaskInt[logmaskWidth][logmaskWidth];
     
-    //maskRad = maskWidth / 2;
+    logmaskRad = logmaskWidth / 2;
     int i, j;
-    //construct the gaussian mask
-    for(int x = - maskRad; x <= maskRad; x++)
+    //construct the LoG mask
+    for(int x = - logmaskRad; x <= logmaskRad; x++)
     {
-        for (int y = -maskRad; y <= maskRad; y++)
+        for (int y = -logmaskRad; y <= logmaskRad; y++)
         {
-            i = x + maskRad;
-            j = y + maskRad;
+            i = x + logmaskRad;
+            j = y + logmaskRad;
             //Laplacian of Gaussian
-            gaussianMaskDou[i][j] = (1 - (x*x + y*y)/(2*sigma*sigma) ) * exp( (x*x + y*y) / (-2*sigma*sigma) );
+            logMaskDou[i][j] = (1 - (x*x + y*y)/(2*sigmaLoG*sigmaLoG) ) * exp( (x*x + y*y) / (-2*sigmaLoG*sigmaLoG) );
             //min value of mask is the first one
-            if(i == 0 && j == 0)  maskMin = gaussianMaskDou[0][0];
+            if(i == 0 && j == 0)  logmaskMin = logMaskDou[0][0];
             //convert mask value double to integer
-            gaussianMaskInt[i][j] = cvRound(gaussianMaskDou[i][j] / maskMin);
-            maskSum += gaussianMaskInt[i][j];
+            logMaskInt[i][j] = cvRound(logMaskDou[i][j] / logmaskMin);
+            logmaskSum += logMaskInt[i][j];
         }
     }
     
-    printf("LoG Mask Sum is %d, rad is %d.\n", maskSum, maskRad);
+    printf("LoG Mask Sum is %d, rad is %d.\n", logmaskSum, logmaskRad);
     //represent mask using global pointer
-    for(i = 0; i <  maskWidth; i++)
-        for (j = 0; j < maskWidth; j++)
-            *(logMask + i*maskWidth + j) = gaussianMaskInt[i][j];
+    for(i = 0; i <  logmaskWidth; i++)
+        for (j = 0; j < logmaskWidth; j++)
+            *(logMask + i*logmaskWidth + j) = logMaskInt[i][j];
 }
 
 int main(int argc, char** argv)
 {
     int imgChoice;
+    int edgeChoice;
     char wndName[] = "Canny Process";
     Mat combinedImage;
     
-    printf(">>>>         Canny Edge Detector           <<<<\n");
-
+    printf(">>>>           Edge Detector           <<<<\n");
+    printf("Please Choose Canny(0) or LoG(1): ");
+    scanf("%d", &edgeChoice);
+    
     bool isNewImage = true;
     while (isNewImage)
     {
@@ -82,37 +83,66 @@ int main(int argc, char** argv)
         bool isNewSigma = true;
         while (isNewSigma)
         {
-            isNewSigma = false;
-            createGaussianKernel();
-            createLapGaussianKernel();
-            cannyDector();
-        
-            combinedImage = combineImage();
-        
-            imshow(wndName, combinedImage);
-            waitKey(10);
-        
-            char tryNewSigma;
-            printf("Do you want to try other sigma?(Y/N): ");
-            scanf("%s", &tryNewSigma);
-            if (tryNewSigma == 'y' || tryNewSigma == 'Y') {
-                isNewSigma = true;
-                printf("\n-------------Please Try Another Sigma-------------\n");
-                destroyWindow(wndName);
-                combinedImage.release();
+            if (edgeChoice == 0) {
+                printf(">>>>           Canny           <<<<\n");
+                //Canny
+                isNewSigma = false;
+                createGaussianKernel();
+                cannyDector();
+                
+                combinedImage = combineImage();
+                
+                imshow(wndName, combinedImage);
+                waitKey(10);
+                
+                char tryNewSigma;
+                printf("Do you want to try other sigma?(Y/N): ");
+                scanf("%s", &tryNewSigma);
+                if (tryNewSigma == 'y' || tryNewSigma == 'Y') {
+                    isNewSigma = true;
+                    printf("\n-------------Please Try Another Sigma-------------\n");
+                    destroyWindow(wndName);
+                    combinedImage.release();
+                }
+                
+                free(gaussianMask);
+                bluredImage.setTo(Scalar(0));
+                edgeMagImage.setTo(Scalar(0));
+                edgeAngImage.setTo(Scalar(0));
+                thinEdgeImage.setTo(Scalar(0));
+                thresholdImage.setTo(Scalar(0));
+                sigma = 0.0;
+                maskRad = 0;
+                maskWidth = 0;
+                maskSum = 0;
+                
+            }else if (edgeChoice == 1){
+                printf(">>>>           LoG           <<<<\n");
+                //LoG
+                isNewSigma = false;
+                createLoGKernel();
+                
+                //combinedImage = combineImage();
+                
+                //imshow(wndName, combinedImage);
+                waitKey(10);
+                
+                char tryNewSigma;
+                printf("Do you want to try other sigma?(Y/N): ");
+                scanf("%s", &tryNewSigma);
+                if (tryNewSigma == 'y' || tryNewSigma == 'Y') {
+                    isNewSigma = true;
+                    printf("\n-------------Please Try Another Sigma-------------\n");
+                    destroyWindow(wndName);
+                    combinedImage.release();
+                }
+                
+                free(logMask);
+                sigmaLoG = 0.0;
+                logmaskRad = 0;
+                logmaskWidth = 0;
+                logmaskSum = 0;
             }
-        
-            free(gaussianMask);
-            free(logMask);
-            bluredImage.setTo(Scalar(0));
-            edgeMagImage.setTo(Scalar(0));
-            edgeAngImage.setTo(Scalar(0));
-            thinEdgeImage.setTo(Scalar(0));
-            thresholdImage.setTo(Scalar(0));
-            sigma = 0.0;
-            maskRad = 0;
-            maskWidth = 0;
-            maskSum = 0;
         }
         char tryNewImage;
         printf("Do you want to try another image?(Y/N): ");
@@ -127,85 +157,9 @@ int main(int argc, char** argv)
     return 0;
 }
 
-int getChoice()
-{
-    int inputNumber;
-    printf(">>>> 1.Cana 2.Fruit 3.Img335 4.Leap 5.Leaf <<<<\n");
-    printf("Please input your choice number and press Enter: ");
-    scanf("%d", &inputNumber);
-    
-    return inputNumber;
-}
-
-Mat raw2Mat(int choice)
-{
-    int IMAGE_WIDTH, IMAGE_HEIGHT, imgSize;
-    char *rawData = NULL;
-    FILE *fp = NULL;
-    
-    switch (choice) {
-        case 1:
-            printf("1.cana.raw is selected.\n");
-            IMAGE_WIDTH = 512;
-            IMAGE_HEIGHT = 479;
-            //Open raw image.
-            fp = fopen("/Users/zichun/Documents/Assignment/CannyEdgeDetector/CED/raw/cana.raw", "rb");
-            break;
-            
-        case 2:
-            printf("2.fruit.raw is selected.\n");
-            IMAGE_WIDTH = 487;
-            IMAGE_HEIGHT = 414;
-            fp = fopen("/Users/zichun/Documents/Assignment/CannyEdgeDetector/CED/raw/fruit.raw", "rb");
-            break;
-            
-        case 3:
-            printf("3.img335.raw is selected.\n");
-            IMAGE_WIDTH = 500;
-            IMAGE_HEIGHT = 335;
-            fp = fopen("/Users/zichun/Documents/Assignment/CannyEdgeDetector/CED/raw/img335.raw", "rb");
-            break;
-            
-        case 4:
-            printf("4.lamp.raw is selected.\n");
-            IMAGE_WIDTH = 256;
-            IMAGE_HEIGHT = 256;
-            fp = fopen("/Users/zichun/Documents/Assignment/CannyEdgeDetector/CED/raw/lamp.raw", "rb");
-            break;
-            
-        case 5:
-            printf("5.leaf.raw is selected.\n");
-            IMAGE_WIDTH = 190;
-            IMAGE_HEIGHT = 243;
-            fp = fopen("/Users/zichun/Documents/Assignment/CannyEdgeDetector/CED/raw/leaf.raw", "rb");
-            break;
-            
-        default:
-            printf("Please select correct image.\n");
-            break;
-    }
-    
-    if (fp == NULL) printf("Open Raw Data Fail!\n");
-    
-    imgSize = IMAGE_HEIGHT * IMAGE_WIDTH;
-    Mat rawImage = Mat::zeros(IMAGE_HEIGHT, IMAGE_WIDTH, CV_8UC1);
-    
-    //Memory allocation for raw image data buffer.
-    rawData = (char*) malloc (sizeof(char) * imgSize);
-    
-    //Read image data and store in buffer.
-    fread(rawData, sizeof(char), imgSize, fp);
-    memcpy(rawImage.data, rawData, imgSize);
-    
-    free(rawData);
-    fclose(fp);
-    
-    return rawImage;
-}
-
 void createGaussianKernel()
 {
-    printf("Please input standard deviation(>0) and press Enter: ");
+    printf("(Canny)Please input standard deviation(>0) and press Enter: ");
     scanf("%f", &sigma);
     if(sigma < 0.01) sigma = 0.01;
     //computer mask width according to sigma value
@@ -258,16 +212,6 @@ void cannyDector()
         for (int j = 0; j < maskWidth; j++)
         {
             printf("%-6d",*(gaussianMask + i*maskWidth + j));
-        }
-        printf("\n");
-    }
-    //print the LoG mask
-    printf("LoG Mask\n");
-    for(int i = 0; i <  maskWidth; i++)
-    {
-        for (int j = 0; j < maskWidth; j++)
-        {
-            printf("%-6d",*(logMask + i*maskWidth + j));
         }
         printf("\n");
     }

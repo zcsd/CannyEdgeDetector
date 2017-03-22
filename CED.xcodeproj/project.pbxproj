@@ -25,6 +25,7 @@
 /* Begin PBXFileReference section */
 		C82711AF1DF2F9D1009A2EB5 /* CED */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = CED; sourceTree = BUILT_PRODUCTS_DIR; };
 		C880A5EB1E4C3BEA0075DD00 /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = CED/main.cpp; sourceTree = SOURCE_ROOT; };
+		C8A4CFC81E82D5BB00AAD096 /* LoadImage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = LoadImage.h; path = CED/LoadImage.h; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -58,6 +59,7 @@
 			isa = PBXGroup;
 			children = (
 				C880A5EB1E4C3BEA0075DD00 /* main.cpp */,
+				C8A4CFC81E82D5BB00AAD096 /* LoadImage.h */,
 			);
 			name = CED;
 			path = cpp_cv_example;
