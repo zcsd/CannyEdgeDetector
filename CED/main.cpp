@@ -8,57 +8,47 @@
 
 using namespace cv;
 
-void createGaussianKernel();
+void createGaussianKernel(int);
 void cannyDector();
 void useGaussianBlur();
 void useSobelDerivat();
 void nonMaxSuppress();
 void hysteresisThreshold(int, int);
 Mat combineImage();
-void createLoGKernel();
+void useLaplace();
 
 Mat oriImage, bluredImage, edgeMagImage, edgeAngImage, thinEdgeImage, thresholdImage;
+Mat lapImage, zerosCrossings;
 int *gaussianMask, maskRad, maskWidth = 0, maskSum = 0;
-int *logMask, logmaskRad, logmaskWidth = 0, logmaskSum = 0;
-float sigma = 0.0, sigmaLoG = 0.0;
+float sigma = 0.0;
 
-void createLoGKernel()
+void FindZeroCrossings()
 {
-    printf("(LoG)Please input standard deviation(>0) and press Enter: ");
-    scanf("%f", &sigmaLoG);
-    if(sigmaLoG < 0.01) sigmaLoG = 0.01;
-    logmaskWidth = 5;
-    printf("Sigma is %.2f, Mask Width is %d.\n", sigmaLoG, logmaskWidth);
-    
-    logMask = (int*)malloc(logmaskWidth * logmaskWidth * sizeof(int));
-    
-    double logMaskDou[logmaskWidth][logmaskWidth], logmaskMin = 0.0;
-    int logMaskInt[logmaskWidth][logmaskWidth];
-    
-    logmaskRad = logmaskWidth / 2;
-    int i, j;
-    //construct the LoG mask
-    for(int x = - logmaskRad; x <= logmaskRad; x++)
+    zerosCrossings.create(lapImage.rows, lapImage.cols, CV_8UC1);
+    zerosCrossings.setTo(Scalar(255));
+    for (int i = 0; i < lapImage.rows; i++)
     {
-        for (int y = -logmaskRad; y <= logmaskRad; y++)
+        for (int j = 0; j < lapImage.cols; j++)
         {
-            i = x + logmaskRad;
-            j = y + logmaskRad;
-            //Laplacian of Gaussian
-            logMaskDou[i][j] = (1 - (x*x + y*y)/(2*sigmaLoG*sigmaLoG) ) * exp( (x*x + y*y) / (-2*sigmaLoG*sigmaLoG) );
-            //min value of mask is the first one
-            if(i == 0 && j == 0)  logmaskMin = logMaskDou[0][0];
-            //convert mask value double to integer
-            logMaskInt[i][j] = cvRound(logMaskDou[i][j] / logmaskMin);
-            logmaskSum += logMaskInt[i][j];
+            int negCounter = 0, posCounter = 0;
+            if ( i == 0 || i == lapImage.rows-1 || j == 0 || j == lapImage.cols-1)
+            {
+                //zerosCrossings.at<uchar>(i, j) = 0;
+            }
+            else
+            {
+                for (int x = -1; x < 2; x++)
+                    for (int y = -1; y < 2; y++)
+                    {
+                        if ( x != 0 && y != 0) {
+                            if (lapImage.at<float>(i+x, j+y) < 0) {
+                                negCounter++;
+                            }else if (lapImage.at<float>())
+                        }
+                    }
+            }
         }
     }
-    
-    printf("LoG Mask Sum is %d, rad is %d.\n", logmaskSum, logmaskRad);
-    //represent mask using global pointer
-    for(i = 0; i <  logmaskWidth; i++)
-        for (j = 0; j < logmaskWidth; j++)
-            *(logMask + i*logmaskWidth + j) = logMaskInt[i][j];
 }
 
 int main(int argc, char** argv)
@@ -87,7 +77,7 @@ int main(int argc, char** argv)
                 printf(">>>>           Canny           <<<<\n");
                 //Canny
                 isNewSigma = false;
-                createGaussianKernel();
+                createGaussianKernel(0);
                 cannyDector();
                 
                 combinedImage = combineImage();
@@ -120,11 +110,14 @@ int main(int argc, char** argv)
                 printf(">>>>           LoG           <<<<\n");
                 //LoG
                 isNewSigma = false;
-                createLoGKernel();
+                createGaussianKernel(1);
+                useGaussianBlur();
+                useLaplace();
+                //FindZeroCrossings();
                 
                 //combinedImage = combineImage();
                 
-                //imshow(wndName, combinedImage);
+                imshow(wndName, lapImage);
                 waitKey(10);
                 
                 char tryNewSigma;
@@ -137,11 +130,13 @@ int main(int argc, char** argv)
                     combinedImage.release();
                 }
                 
-                free(logMask);
-                sigmaLoG = 0.0;
-                logmaskRad = 0;
-                logmaskWidth = 0;
-                logmaskSum = 0;
+                free(gaussianMask);
+                bluredImage.setTo(Scalar(0));
+                lapImage.setTo(Scalar(0));
+                sigma = 0.0;
+                maskRad = 0;
+                maskWidth = 0;
+                maskSum = 0;
             }
         }
         char tryNewImage;
@@ -157,13 +152,20 @@ int main(int argc, char** argv)
     return 0;
 }
 
-void createGaussianKernel()
+void createGaussianKernel(int widthType)
 {
     printf("(Canny)Please input standard deviation(>0) and press Enter: ");
     scanf("%f", &sigma);
     if(sigma < 0.01) sigma = 0.01;
     //computer mask width according to sigma value
-    maskWidth = int((sigma - 0.01) * 3) * 2 + 1;
+    if (widthType == 0) {
+        //For canny
+        maskWidth = int((sigma - 0.01) * 3) * 2 + 1;
+    }else if (widthType == 1){
+        //for LoG
+        maskWidth = 5;
+    }
+    
     if(maskWidth < 1)   maskWidth = 1;
     printf("Sigma is %.2f, Mask Width is %d.\n", sigma, maskWidth);
     
@@ -415,4 +417,35 @@ Mat combineImage()
     vconcat(h1CombineImage, h2CombineImage, allImage);
     
     return allImage;
+}
+/////////////////////////////LoG//////////////////////////////////
+void useLaplace(){
+    lapImage = Mat::zeros(bluredImage.rows, bluredImage.cols, CV_32FC1);
+    
+    int lapMask[3][3] = { {0, 1, 0},
+        {1, -4, 1},
+        {0, 1, 0} };
+    
+    int lapRad = 1;
+    int lapWidth = 3;
+    
+    for (int i = 0; i < bluredImage.rows; i++)
+    {
+        for (int j = 0; j < bluredImage.cols; j++)
+        {
+            if ( i == lapRad-1 || i == bluredImage.rows-lapRad || j == lapRad-1 || j ==bluredImage.cols-lapRad)
+            {
+                lapImage.at<float>(i, j) = 0.0;
+            }
+            else
+            {
+                for (int x = 0; x < lapWidth; x++)
+                    for (int y = 0; y < lapWidth; y++)
+                    {
+                        lapImage.at<float>(i, j) += float(lapMask[x][y] * bluredImage.at<uchar>(i+x-lapRad, j+y-lapRad));
+                        //printf("%f " , lapImage.at<float>(i, j));
+                    }
+            }
+        }
+    }
 }
