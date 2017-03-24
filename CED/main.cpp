@@ -25,7 +25,7 @@ float sigma = 0.0;
 void FindZeroCrossings()
 {
     zerosCrossings.create(lapImage.rows, lapImage.cols, CV_8UC1);
-    zerosCrossings.setTo(Scalar(255));
+    zerosCrossings.setTo(Scalar(0));
     for (int i = 0; i < lapImage.rows; i++)
     {
         for (int j = 0; j < lapImage.cols; j++)
@@ -43,10 +43,16 @@ void FindZeroCrossings()
                         if ( x != 0 && y != 0) {
                             if (lapImage.at<float>(i+x, j+y) < 0) {
                                 negCounter++;
-                            }else if (lapImage.at<float>())
+                            }else if (lapImage.at<float>(i+x, j+y) > 0) {
+                                posCounter++;
+                            }
                         }
                     }
             }
+            if (negCounter > 0 && posCounter > 0) {
+                zerosCrossings.at<uchar>(i, j) = 255;
+            }
+
         }
     }
 }
@@ -113,11 +119,12 @@ int main(int argc, char** argv)
                 createGaussianKernel(1);
                 useGaussianBlur();
                 useLaplace();
-                //FindZeroCrossings();
+                FindZeroCrossings();
                 
                 //combinedImage = combineImage();
                 
                 imshow(wndName, lapImage);
+                imshow("Zero", zerosCrossings);
                 waitKey(10);
                 
                 char tryNewSigma;
@@ -421,19 +428,24 @@ Mat combineImage()
 /////////////////////////////LoG//////////////////////////////////
 void useLaplace(){
     lapImage = Mat::zeros(bluredImage.rows, bluredImage.cols, CV_32FC1);
-    
+    /*
     int lapMask[3][3] = { {0, 1, 0},
         {1, -4, 1},
-        {0, 1, 0} };
+        {0, 1, 0} };*/
+    int lapMask[5][5] = { {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, -24, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1}};
     
-    int lapRad = 1;
-    int lapWidth = 3;
+    int lapRad = 2;
+    int lapWidth = 5;
     
     for (int i = 0; i < bluredImage.rows; i++)
     {
         for (int j = 0; j < bluredImage.cols; j++)
         {
-            if ( i == lapRad-1 || i == bluredImage.rows-lapRad || j == lapRad-1 || j ==bluredImage.cols-lapRad)
+            if ( i < lapRad || i > bluredImage.rows-lapRad || j < lapRad || j >bluredImage.cols-lapRad)
             {
                 lapImage.at<float>(i, j) = 0.0;
             }
