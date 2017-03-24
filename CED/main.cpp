@@ -16,52 +16,18 @@ void nonMaxSuppress();
 void hysteresisThreshold(int, int);
 Mat combineImage();
 void useLaplace();
+void findZeroCrossings();
+Mat combineLoGImage();
 
 Mat oriImage, bluredImage, edgeMagImage, edgeAngImage, thinEdgeImage, thresholdImage;
 Mat lapImage, zerosCrossings;
 int *gaussianMask, maskRad, maskWidth = 0, maskSum = 0;
 float sigma = 0.0;
 
-void FindZeroCrossings()
-{
-    zerosCrossings.create(lapImage.rows, lapImage.cols, CV_8UC1);
-    zerosCrossings.setTo(Scalar(0));
-    for (int i = 0; i < lapImage.rows; i++)
-    {
-        for (int j = 0; j < lapImage.cols; j++)
-        {
-            int negCounter = 0, posCounter = 0;
-            if ( i == 0 || i == lapImage.rows-1 || j == 0 || j == lapImage.cols-1)
-            {
-                //zerosCrossings.at<uchar>(i, j) = 0;
-            }
-            else
-            {
-                for (int x = -1; x < 2; x++)
-                    for (int y = -1; y < 2; y++)
-                    {
-                        if ( x != 0 && y != 0) {
-                            if (lapImage.at<float>(i+x, j+y) < 0) {
-                                negCounter++;
-                            }else if (lapImage.at<float>(i+x, j+y) > 0) {
-                                posCounter++;
-                            }
-                        }
-                    }
-            }
-            if (negCounter > 0 && posCounter > 0) {
-                zerosCrossings.at<uchar>(i, j) = 255;
-            }
-
-        }
-    }
-}
-
 int main(int argc, char** argv)
 {
     int imgChoice;
     int edgeChoice;
-    char wndName[] = "Canny Process";
     Mat combinedImage;
     
     printf(">>>>           Edge Detector           <<<<\n");
@@ -80,13 +46,17 @@ int main(int argc, char** argv)
         while (isNewSigma)
         {
             if (edgeChoice == 0) {
-                printf(">>>>           Canny           <<<<\n");
-                //Canny
+                printf("..............Canny...............\n");
+                char wndName[] = "Canny Process";
+                //////////////Canny///////////////////
                 isNewSigma = false;
                 createGaussianKernel(0);
                 cannyDector();
                 
                 combinedImage = combineImage();
+                if (combinedImage.rows > 600) {
+                    resize(combinedImage, combinedImage, Size(combinedImage.cols/1.4,combinedImage.rows/1.4));
+                }
                 
                 imshow(wndName, combinedImage);
                 waitKey(10);
@@ -113,18 +83,21 @@ int main(int argc, char** argv)
                 maskSum = 0;
                 
             }else if (edgeChoice == 1){
-                printf(">>>>           LoG           <<<<\n");
-                //LoG
+                printf("................LoG...............\n");
+                char wndName[] = "LoG Process";
+                ///////////////////LoG////////////////////////
                 isNewSigma = false;
                 createGaussianKernel(1);
                 useGaussianBlur();
                 useLaplace();
-                FindZeroCrossings();
+                findZeroCrossings();
                 
-                //combinedImage = combineImage();
+                combinedImage = combineLoGImage();
+                if (combinedImage.rows > 600) {
+                    resize(combinedImage, combinedImage, Size(combinedImage.cols/1.4,combinedImage.rows/1.4));
+                }
                 
-                imshow(wndName, lapImage);
-                imshow("Zero", zerosCrossings);
+                imshow(wndName, combinedImage);
                 waitKey(10);
                 
                 char tryNewSigma;
@@ -140,6 +113,7 @@ int main(int argc, char** argv)
                 free(gaussianMask);
                 bluredImage.setTo(Scalar(0));
                 lapImage.setTo(Scalar(0));
+                zerosCrossings.setTo(Scalar(0));
                 sigma = 0.0;
                 maskRad = 0;
                 maskWidth = 0;
@@ -161,7 +135,7 @@ int main(int argc, char** argv)
 
 void createGaussianKernel(int widthType)
 {
-    printf("(Canny)Please input standard deviation(>0) and press Enter: ");
+    printf("Please input standard deviation(>0) and press Enter: ");
     scanf("%f", &sigma);
     if(sigma < 0.01) sigma = 0.01;
     //computer mask width according to sigma value
@@ -200,7 +174,7 @@ void createGaussianKernel(int widthType)
         }
     }
     
-    printf("Mask Sum is %d, rad is %d.\n", maskSum, maskRad);
+    //printf("Mask Sum is %d, rad is %d.\n", maskSum, maskRad);
     //represent mask using global pointer
     for(i = 0; i <  maskWidth; i++)
         for (j = 0; j < maskWidth; j++)
@@ -216,6 +190,7 @@ void cannyDector()
     
     //print the gaussian mask
     //access the gaussian mask using pointer
+    /*
     for(int i = 0; i <  maskWidth; i++)
     {
         for (int j = 0; j < maskWidth; j++)
@@ -223,7 +198,7 @@ void cannyDector()
             printf("%-6d",*(gaussianMask + i*maskWidth + j));
         }
         printf("\n");
-    }
+    }*/
 }
 
 void useGaussianBlur()
@@ -436,7 +411,7 @@ void useLaplace(){
         {1, 1, 1, 1, 1},
         {1, 1, -24, 1, 1},
         {1, 1, 1, 1, 1},
-        {1, 1, 1, 1, 1}};
+        {1, 1, 1, 1, 1} };
     
     int lapRad = 2;
     int lapWidth = 5;
@@ -445,7 +420,7 @@ void useLaplace(){
     {
         for (int j = 0; j < bluredImage.cols; j++)
         {
-            if ( i < lapRad || i > bluredImage.rows-lapRad || j < lapRad || j >bluredImage.cols-lapRad)
+            if ( i < lapRad || i > bluredImage.rows-lapRad-1 || j < lapRad || j >bluredImage.cols-lapRad-1)
             {
                 lapImage.at<float>(i, j) = 0.0;
             }
@@ -455,9 +430,57 @@ void useLaplace(){
                     for (int y = 0; y < lapWidth; y++)
                     {
                         lapImage.at<float>(i, j) += float(lapMask[x][y] * bluredImage.at<uchar>(i+x-lapRad, j+y-lapRad));
-                        //printf("%f " , lapImage.at<float>(i, j));
                     }
             }
         }
     }
 }
+
+void findZeroCrossings()
+{
+    int th = 100;//Threshold value to remove noise
+    zerosCrossings.create(lapImage.rows, lapImage.cols, CV_8UC1);
+    zerosCrossings.setTo(Scalar(0));
+    for (int i = 0; i < lapImage.rows; i++)
+    {
+        for (int j = 0; j < lapImage.cols; j++)
+        {
+            int min = 9999;
+            int max = 0 - min;
+            if ( i == 0 || i == lapImage.rows-1 || j == 0 || j == lapImage.cols-1)
+            {
+                //zerosCrossings.at<uchar>(i, j) = 0;
+            }
+            else
+            {
+                for (int x = -1; x < 2; x++)
+                    for (int y = -1; y < 2; y++)
+                    {
+                        if ( x != 0 && y != 0) {
+                            if (lapImage.at<float>(i+x, j+y) < min) {
+                                min = lapImage.at<float>(i+x, j+y);
+                            }else if (lapImage.at<float>(i+x, j+y) > max) {
+                                max = lapImage.at<float>(i+x, j+y);
+                            }
+                        }
+                    }
+            }
+            if (min < -th && max > th) {
+                zerosCrossings.at<uchar>(i, j) = 255;
+            }
+        }
+    }
+}
+
+Mat combineLoGImage()
+{
+    Mat h1CombineImage, h2CombineImage, allImage;
+    Mat lapShow;
+    lapImage.convertTo(lapShow, CV_8UC1);
+    hconcat(oriImage, bluredImage, h1CombineImage);
+    hconcat(lapShow, zerosCrossings, h2CombineImage);
+    vconcat(h1CombineImage, h2CombineImage, allImage);
+    
+    return allImage;
+}
+
