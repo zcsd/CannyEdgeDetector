@@ -38,8 +38,9 @@ int main(int argc, char** argv)
     while (isNewImage)
     {
         isNewImage = false;
-        
+        //choose which image that you want to process
         imgChoice = getChoice();
+        //convert file from .raw format to Mat
         oriImage = raw2Mat(imgChoice);
     
         bool isNewSigma = true;
@@ -52,7 +53,7 @@ int main(int argc, char** argv)
                 isNewSigma = false;
                 createGaussianKernel(0);
                 cannyDector();
-                
+                //combine all images for showing
                 combinedImage = combineImage();
                 if (combinedImage.rows > 600) {
                     resize(combinedImage, combinedImage, Size(combinedImage.cols/1.4,combinedImage.rows/1.4));
@@ -70,7 +71,7 @@ int main(int argc, char** argv)
                     destroyWindow(wndName);
                     combinedImage.release();
                 }
-                
+                //release memory
                 free(gaussianMask);
                 bluredImage.setTo(Scalar(0));
                 edgeMagImage.setTo(Scalar(0));
@@ -132,7 +133,8 @@ int main(int argc, char** argv)
     printf("-------Program End-------\n");
     return 0;
 }
-
+//Create Gaussian Kernel. used by Canny and LoG
+//LoG use mask with width 5, canny use mask with width that determined by sigma
 void createGaussianKernel(int widthType)
 {
     printf("Please input standard deviation(>0) and press Enter: ");
@@ -149,7 +151,7 @@ void createGaussianKernel(int widthType)
     
     if(maskWidth < 1)   maskWidth = 1;
     printf("Sigma is %.2f, Mask Width is %d.\n", sigma, maskWidth);
-    
+    //declare mask as dynamic memory
     gaussianMask = (int*)malloc(maskWidth * maskWidth * sizeof(int));
     
     double gaussianMaskDou[maskWidth][maskWidth], maskMin = 0.0;
@@ -200,7 +202,7 @@ void cannyDector()
         printf("\n");
     }*/
 }
-
+//For the borde, keep the pixel unchanged
 void useGaussianBlur()
 {
     //keep border pixel unchanged
@@ -225,7 +227,7 @@ void useGaussianBlur()
         
     }
 }
-
+//combine X and Y derivites
 void useSobelDerivat()
 {
     edgeMagImage = Mat::zeros(bluredImage.rows, bluredImage.cols, CV_8UC1);
@@ -266,7 +268,7 @@ void useSobelDerivat()
                 edgeMagImage.at<uchar>(i, j) = mag;
                 
                 int ang = (atan2(sumY, sumX)/M_PI) * 180;
-                
+                //4 angle, 0 45 90 135
                 if ( ( (ang < 22.5) && (ang >= -22.5) ) || (ang >= 157.5) || (ang < -157.5) )
                     ang = 0;
                 if ( ( (ang >= 22.5) && (ang < 67.5) ) || ( (ang < -112.5) && (ang >= -157.5) ) )
