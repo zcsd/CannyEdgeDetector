@@ -20,7 +20,7 @@ void findZeroCrossings();
 Mat combineLoGImage();
 
 Mat oriImage, bluredImage, edgeMagImage, edgeAngImage, thinEdgeImage, thresholdImage;
-Mat lapImage, zerosCrossings;
+Mat lapImage, zerosCrossings, sobelX, sobelY;
 int *gaussianMask, maskRad, maskWidth = 0, maskSum = 0;
 float sigma = 0.0;
 
@@ -75,6 +75,8 @@ int main(int argc, char** argv)
                 free(gaussianMask);
                 bluredImage.setTo(Scalar(0));
                 edgeMagImage.setTo(Scalar(0));
+                sobelY.setTo(Scalar(0));
+                sobelX.setTo(Scalar(0));
                 edgeAngImage.setTo(Scalar(0));
                 thinEdgeImage.setTo(Scalar(0));
                 thresholdImage.setTo(Scalar(0));
@@ -99,6 +101,7 @@ int main(int argc, char** argv)
                 }
                 
                 imshow(wndName, combinedImage);
+                //imshow("lap", lapImage);
                 waitKey(10);
                 
                 char tryNewSigma;
@@ -232,6 +235,8 @@ void useSobelDerivat()
 {
     edgeMagImage = Mat::zeros(bluredImage.rows, bluredImage.cols, CV_8UC1);
     edgeAngImage = Mat::zeros(bluredImage.rows, bluredImage.cols, CV_8UC1);
+    sobelX = Mat::zeros(bluredImage.rows, bluredImage.cols, CV_8UC1);
+    sobelY = Mat::zeros(bluredImage.rows, bluredImage.cols, CV_8UC1);
     
     int xsobelMask[3][3] = { {-1, 0, 1},
         {-2, 0, 2},
@@ -250,6 +255,8 @@ void useSobelDerivat()
             {
                 edgeMagImage.at<uchar>(i, j) = 0;
                 edgeAngImage.at<uchar>(i, j) = 255;
+                sobelX.at<uchar>(i,j) = 0;
+                sobelY.at<uchar>(i,j) = 0;
             }
             else
             {
@@ -266,6 +273,30 @@ void useSobelDerivat()
                 int mag = sqrt(sumX*sumX + sumY*sumY);
                 if (mag > 255)  mag = 255;
                 edgeMagImage.at<uchar>(i, j) = mag;
+                //Process sobel X
+                if (sumX < 0) {
+                    if (sumX < -255 || sumX == -255) {
+                        sobelX.at<uchar>(i,j) = 255;
+                    }else{
+                        sobelX.at<uchar>(i,j) = sumX * (-1);
+                    }
+                }else if (sumX > 255 || sumX == 255){
+                    sobelX.at<uchar>(i,j) = 255;
+                }else{
+                    sobelX.at<uchar>(i,j) = sumX;
+                }
+                //Process soble Y
+                if (sumY < 0) {
+                    if (sumY < -255 || sumY == -255) {
+                        sobelY.at<uchar>(i,j) = 255;
+                    }else{
+                        sobelY.at<uchar>(i,j) = sumY * (-1);
+                    }
+                }else if (sumY > 255 || sumY == 255){
+                    sobelY.at<uchar>(i,j) = 255;
+                }else{
+                    sobelY.at<uchar>(i,j) = sumY;
+                }
                 
                 int ang = (atan2(sumY, sumX)/M_PI) * 180;
                 //4 angle, 0 45 90 135
@@ -278,6 +309,7 @@ void useSobelDerivat()
                 if ( ( (ang >= 112.5) && (ang < 157.5) ) || ( (ang < -22.5) && (ang >= -67.5) ) )
                     ang = 135;
                 edgeAngImage.at<uchar>(i, j) = ang;
+
             }
         }
     }
@@ -389,15 +421,17 @@ Mat combineImage()
     char sigmaChar[10];
     sprintf(sigmaChar, "%.2f", sigma);
     
-    putText(extraImage, "Ori, Gaus, Sobel", Point(10,20), FONT_HERSHEY_PLAIN, 1, Scalar(0));
-    putText(extraImage, "NMS, Threshold", Point(10,38), FONT_HERSHEY_PLAIN, 1, Scalar(0));
+    putText(extraImage, "Ori, Gaus, Sobel, Sobel X", Point(10,20), FONT_HERSHEY_PLAIN, 1, Scalar(0));
+    putText(extraImage, "NMS, Threshold, White, Sobel Y", Point(10,38), FONT_HERSHEY_PLAIN, 1, Scalar(0));
     putText(extraImage, "Sigma: ", Point(10,56), FONT_HERSHEY_PLAIN, 1, Scalar(0));
     putText(extraImage, sigmaChar, Point(65,56), FONT_HERSHEY_PLAIN, 1, Scalar(0));
     
     hconcat(oriImage, bluredImage, h1CombineImage);
     hconcat(h1CombineImage, edgeMagImage, h1CombineImage);
+    hconcat(h1CombineImage, sobelY, h1CombineImage);
     hconcat(thinEdgeImage, thresholdImage, h2CombineImage);
     hconcat(h2CombineImage, extraImage, h2CombineImage);
+    hconcat(h2CombineImage, sobelX, h2CombineImage);
     vconcat(h1CombineImage, h2CombineImage, allImage);
     
     return allImage;
