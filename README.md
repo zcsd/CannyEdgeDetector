@@ -4,9 +4,9 @@ OS: Mac OS X , preinstall OpenCV-3.1.0
 
 IDE: XCode
 
-Input: .raw file
+Input: .raw file, you can change
 
 Note:
 
-If you want use the code in Windows, please change the header and file path(/, \)
+If you want use the code in Windows, please change the header and file path
 
